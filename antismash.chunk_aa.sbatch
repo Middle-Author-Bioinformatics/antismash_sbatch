@@ -3,7 +3,7 @@
 #SBATCH --time=6-00:00:00                 # Time limit (D-HH:MM:SS)
 #SBATCH --ntasks=1                        # Number of tasks (1 task using multiple threads)
 #SBATCH --cpus-per-task=40                # Number of CPU cores to use
-#SBATCH --mem-per-cpu=1024                # Memory per CPU (1 GB per core = 80 GB total)
+#SBATCH --mem-per-cpu=1024                # Memory per CPU (1 GB per core = 40 GB total)
 #SBATCH --output=/work/dsamuelson/mmandolfo/job.%J.out
 #SBATCH --error=/work/dsamuelson/mmandolfo/job.%J.err
 #SBATCH --mail-user=mmandolfo@unmc.edu
@@ -21,5 +21,6 @@ while read i; do
     antismash --genefinding-tool prodigal-m --output-dir antismash_${contigs%_contigs*} --output-basename ${contigs%_contigs*} --taxon bacteria -c 40 --cb-knownclusters --cc-mibig --tfbs --fimo --no-enable-genefunctions ${contigs}
     python /work/dsamuelson/mmandolfo/sbatch_code2/antismash2csv.py -o ${contigs%_contigs*}.csv antismash_${contigs%_contigs*}
     rm ${contigs}
+    rm ${contigs}.gz
 done < chunk_aa
 
