@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=antismash           # Job name
+#SBATCH --job-name=antismash_chunk_ad
 #SBATCH --time=6-23:59:00                 # Time limit (D-HH:MM:SS)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1                        # Number of tasks (1 task using multiple threads)
@@ -9,6 +9,8 @@
 #SBATCH --error=/work/dsamuelson/mmandolfo/job.%J.err
 #SBATCH --mail-user=mmandolfo@unmc.edu
 #SBATCH --mail-type=END,FAIL
+CHUNK="chunk_ad"
+RUNNAME="chunk_ad"
 
 module load anaconda/25.3
 
@@ -23,9 +25,10 @@ while read i; do
     contigs=$(basename $i)
     gzip -d ${contigs}
     contigs=${contigs%.gz}
-    antismash --databases $ANTISMASH_DATA_PATH --genefinding-tool prodigal-m --output-dir antismash_${contigs%_contigs*} --output-basename ${contigs%_contigs*} --taxon bacteria -c 40 --cb-knownclusters --cc-mibig --tfbs --fimo --no-enable-genefunctions ${contigs}
+    antismash --databases $ANTISMASH_DATA_PATH --genefinding-tool prodigal-m --output-dir antismash_${contigs%_contigs*} --output-basename ${contigs%_contigs*} --taxon bacteria -c "$SLURM_CPUS_PER_TASK" --cb-knownclusters --cc-mibig --tfbs --fimo --no-enable-genefunctions ${contigs}
     python /work/dsamuelson/mmandolfo/sbatch_code2/antismash2csv.py -o ${contigs%_contigs*}.csv antismash_${contigs%_contigs*}
-    rm ${contigs}
-done < chunk
+    rm -rf ${contigs}
+    rm -rf ${contigs}.gz
+done < "$CHUNK"
 
 
