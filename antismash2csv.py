@@ -314,6 +314,11 @@ def _kcb_parse_details(block_text: str) -> Dict[str, str]:
     }
 
 def _parse_knownclusterblast(txt_path: Optional[Path], verbose: bool=False) -> Dict[str, str]:
+    """Parse KnownClusterBlast text and return *all* significant hits
+    concatenated with semicolons in the BGC columns (Accession, Source, Type,
+    Proteins with BLAST hits, Cumulative BLAST score). Preserves original behavior
+    if no blocks are found.
+    """
     empty = {
         "BGC Accession": "",
         "BGC Source": "",
@@ -333,24 +338,37 @@ def _parse_knownclusterblast(txt_path: Optional[Path], verbose: bool=False) -> D
             print(f"[KCB] No blocks found in {txt_path}")
         return empty
 
-    def cum_score(block):
-        d = _kcb_parse_details(block["text"])
-        try:
-            return float(d.get("BGC Cumulative BLAST score", "") or 0.0)
-        except ValueError:
-            return 0.0
+    # Sort by 'rank' (1..N); '>>' markers keep relative order.
+    blocks = sorted(blocks, key=lambda b: b.get("rank", 10**9))
 
-    topflag_blocks = [b for b in blocks if b["topflag"]]
-    if topflag_blocks:
-        best = sorted(topflag_blocks, key=lambda b: (-cum_score(b), b["rank"]))[0]
-    else:
-        rank1 = [b for b in blocks if b["rank"] == 1]
-        best = rank1[0] if rank1 else sorted(blocks, key=lambda b: -cum_score(b))[0]
+    accs: List[str] = []
+    srcs: List[str] = []
+    types: List[str] = []
+    prots: List[str] = []
+    scores: List[str] = []
 
-    details = _kcb_parse_details(best["text"])
+    for b in blocks:
+        accs.append(b.get("bgc", ""))
+        d = _kcb_parse_details(b.get("text", ""))
+        srcs.append(d.get("BGC Source", ""))
+        types.append(d.get("BGC Type", ""))
+        prots.append(d.get("BGC Proteins with BLAST hits", ""))
+        scores.append(d.get("BGC Cumulative BLAST score", ""))
+
+    def join_semicol(vals: List[str]) -> str:
+        cleaned = [v.strip() for v in vals if v is not None and str(v).strip() != ""]
+        return "; ".join(cleaned)
+
+    out = {
+        "BGC Accession": join_semicol(accs),
+        "BGC Source": join_semicol(srcs),
+        "BGC Type": join_semicol(types),
+        "BGC Proteins with BLAST hits": join_semicol(prots),
+        "BGC Cumulative BLAST score": join_semicol(scores),
+    }
     if verbose:
-        print(f"[KCB] Using {txt_path.name}: {best['bgc']} (score {details.get('BGC Cumulative BLAST score','')})")
-    return {"BGC Accession": best["bgc"], **details}
+        print(f"[KCB] Aggregated {len(blocks)} hits from {txt_path.name}")
+    return out
 
 def _find_knowncluster_dirs(root: Path) -> List[Path]:
     # Case-insensitive search for 'knownclusterblast' near the GBKs
@@ -482,7 +500,8 @@ def parse_directory(
     rows = []
     all_tfbs_rows: List[Dict[str, str]] = []
 
-    gbks = sorted(dir_path.glob("*.gbk")) or sorted(dir_path.rglob("*.gbk"))
+    gbks = [g for g in (sorted(dir_path.glob("*.gbk")) or sorted(dir_path.rglob("*.gbk")))
+            if g.name != f"{dir_path.name}.gbk"]
 
     if known_dir_override and known_dir_override.exists():
         known_dirs = [known_dir_override]

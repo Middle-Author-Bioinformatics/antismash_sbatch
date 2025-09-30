@@ -53,7 +53,7 @@ done
 cd ${WORKING_DIR} || exit
 
 # OUTPUT SHOULD INCLUDE THREE FILES: antiSMASH-only.csv, antiSMASH-FeGenie.csv antiSMASH-FeGenie-rescued
-python antismash_fegenie_triage.py -a ${ANTISMASH_PARSED_DIR} -f ${FEGENIEOUTDIR} -b ${BLASTOUTDIR} -m ${ANTISMASH_PARSED_DIR}/mibig -o ${FINAL
+python triage.py -a ${ANTISMASH_PARSED_DIR} -f ${FEGENIEOUTDIR} -b ${BLASTOUTDIR} -m ${ANTISMASH_PARSED_DIR}/mibig -o ${FINAL
 
 
 

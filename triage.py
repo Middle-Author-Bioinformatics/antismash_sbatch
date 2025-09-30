@@ -2,6 +2,9 @@ import os
 import re
 import statistics
 from collections import defaultdict
+import argparse
+import textwrap
+import sys
 
 
 def lastItem(ls):
@@ -33,28 +36,61 @@ def cluster(data, maxgap):
             groups.append([x])
     return groups
 
+
+parser = argparse.ArgumentParser(
+    prog="triage.py",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    description=textwrap.dedent('''
+    *******************************************************
+
+    Developed by Arkadiy Garber;
+    Middle Author Bionformatics, LLC.
+    Please send comments and inquiries to ark@midauthorbio.com
+
+    *******************************************************
+    '''))
+
+
+parser.add_argument('-a', type=str, help="antiSMASH parsed directory")
+parser.add_argument('-f', type=str, help="FeGenie output directory")
+parser.add_argument('-b', type=str, help="BLAST output directory")
+parser.add_argument('-m', type=str, help="MiBIG directory")
+parser.add_argument('-o', type=str, help="output directory")
+
+if len(sys.argv) == 1:
+    parser.print_help(sys.stderr)
+    sys.exit(0)
+
+args = parser.parse_known_args()[0]
+
+antismashDir = args.a
+feGenieDir = args.f
+blastDir = args.b
+mibigDir = args.m
+outDir = args.o
+
 productDict = defaultdict(lambda: 0)
-products = open("/Users/agarber4/Desktop/MABanalysis/UNMC/naturalproducts.csv")
+products = open("naturalproducts.csv")
 for i in products:
     productDict[i.rstrip().lower()] = 1
 
 knownDict = defaultdict(lambda: 0)
-known = open("/Users/agarber4/Desktop/MABanalysis/UNMC/knownclusterblast.csv")
+known = open("knownclusterblast.csv")
 for i in known:
     knownDict[i.rstrip().lower()] = 1
 
 tfbsDict = defaultdict(lambda: 0)
-tfbs = open("/Users/agarber4/Desktop/MABanalysis/UNMC/tfbs.csv")
+tfbs = open("tfbs.csv")
 for i in tfbs:
     tfbsDict[i.rstrip().lower()] = 1
 
 print("Parsing MiBIG files for known natural products...")
 mibigDict = defaultdict(lambda: defaultdict(list))
 mibigDict2 = defaultdict(lambda: defaultdict(list))
-mibigDir = os.listdir("/Users/agarber4/Desktop/MABanalysis/UNMC/antismash/mibig")
+mibigDir = os.listdir(f"{antismashDir}/mibig")
 for i in mibigDir:
     if re.search(r'csv', i):
-        mibig = open(f"/Users/agarber4/Desktop/MABanalysis/UNMC/antismash/mibig/{i}")
+        mibig = open(f"{antismashDir}/mibig/{i}")
         for j in mibig:
             ls = j.rstrip().split(",")
             product = "-"
@@ -71,7 +107,7 @@ for i in mibigDir:
 
 print("Parsing BLAST results for contig matches...")
 blastDict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: '-')))
-blastDir = os.listdir("/Users/agarber4/Desktop/MABanalysis/UNMC/blast")
+blastDir = os.listdir(f"{blastDir}")
 for i in blastDir:
     if re.search("blast", i):
         blast = open(f"/Users/agarber4/Desktop/MABanalysis/UNMC/blast/{i}")
@@ -85,10 +121,10 @@ for i in blastDir:
 
 print("Parsing antiSMASH results...")
 antiDict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: '0')))
-antiDir = os.listdir("/Users/agarber4/Desktop/MABanalysis/UNMC/antismash")
+antiDir = os.listdir(f"{antismashDir}")
 for i in antiDir:
     if re.search("csv", i):
-        file = open(f"/Users/agarber4/Desktop/MABanalysis/UNMC/antismash/{i}")
+        file = open(f"{antismashDir}/{i}")
         for j in file:
             ls = j.rstrip().split(",")
             if ls[0] != "File":
@@ -115,7 +151,7 @@ for i in antiDir:
 print("Parsing FeGenie results...")
 feDict = defaultdict(lambda: defaultdict(list))
 feLocusDict = defaultdict(lambda: defaultdict(list))
-fegenie = open("/Users/agarber4/Desktop/MABanalysis/UNMC/fegenie/FeGenie-geneSummary-allresults.csv")
+fegenie = open(f"{antismashDir}/FeGenie-geneSummary.csv")
 for i in fegenie:
     if not re.match(r'#', i):
         ls = i.rstrip().split(",")
@@ -138,14 +174,17 @@ for i in feDict.keys():
             sidSynthDict[i.split("_")[0]][j] = feLocusDict[i][j]
             sidLocusDict[i.split("_")[0]][j] = feDict[i][j]
 
-out1 = open("/Users/agarber4/Desktop/MABanalysis/UNMC/antiSMASH-FeGenie.csv", "w")
-out1.write("sample,contig,kmeric_abundance,antiSMASH_category,antiSMASH_product,antiSMASH_knownclusterblastSource,antiSMASH_knownclusterblastType\n")
+out1 = open(f"{outDir}/antiSMASH-FeGenie.csv", "w")
+out1.write("sample,contig,antiSMASH_category,antiSMASH_product,antiSMASH_knownclusterblastSource,antiSMASH_knownclusterblastType,TFBS\n")
 
-out2 = open("/Users/agarber4/Desktop/MABanalysis/UNMC/antiSMASH-only.csv", "w")
-out2.write("sample,contig,kmeric_abundance,antiSMASH_category,antiSMASH_product,antiSMASH_knownclusterblastSource,antiSMASH_knownclusterblastType\n")
+out2 = open(f"{outDir}/antiSMASH-only.csv", "w")
+out2.write("sample,contig,antiSMASH_category,antiSMASH_product,antiSMASH_knownclusterblastSource,antiSMASH_knownclusterblastType,TFBS\n")
 
-out3 = open("/Users/agarber4/Desktop/MABanalysis/UNMC/antiSMASH-FeGenie-rescued.csv", "w")
+out3 = open(f"{outDir}/antiSMASH-FeGenie-rescued-detailed.csv", "w")
 out3.write("sample,contig,locus_tag,feature\n")
+
+out4 = open(f"{outDir}/antiSMASH-FeGenie-rescued.csv", "w")
+out4.write("sample,contig,locus_tags,features\n")
 
 antiDict2 = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: '0')))
 for i in antiDict.keys():
@@ -196,9 +235,6 @@ for i in antiDict.keys():
         except ZeroDivisionError:
             pass
 
-    out1.write("\n")
-    out2.write("\n")
-
 out1.close()
 out2.close()
 
@@ -230,74 +266,11 @@ for i in rescueDict.keys():
                 longestCluster = len(k)
         for k in clusters:
             if len(k) == longestCluster:
+                features = []
                 for l in k:
                     out3.write(f"{i},{j},{l},{rescueDict[i][j][l]}\n")
+                    features.append(rescueDict[i][j][l])
+                out4.write(f"{i},{j},{';'.join([str(x) for x in k])},{';'.join(features)}\n")
     out3.write("\n")
 out3.close()
-
-'''
-metaDict = defaultdict(lambda: '-')
-meta = open("/Users/agarber4/Desktop/MABanalysis/UNMC/metadata.csv")
-for i in meta:
-    ls = i.rstrip().split(",")
-    metaDict[ls[0]] = ls[1]
-
-out = open("/Users/agarber4/Desktop/MABanalysis/UNMC/fegenie/FeGenie-heatmap-metadata.csv", "w")
-heatmap = open("/Users/agarber4/Desktop/MABanalysis/UNMC/fegenie/FeGenie-heatmap-data.csv")
-for i in heatmap:
-    ls = i.rstrip().split(",")
-    if ls[0] == "X":
-        out.write("X")
-        print(ls)
-        for j in ls[1:]:
-            mg = j.split("_con")[0]
-            print(mg + "\t" + metaDict[mg])
-            out.write("," + metaDict[mg])
-        out.write("\n")
-        out.write(i.rstrip() + "\n")
-    else:
-        out.write(i.rstrip() + "\n")
-out.close()
-'''
-
-
-'''
-antiDict = defaultdict(lambda: defaultdict(list))
-DIR = os.listdir("/Users/agarber4/Desktop/MABanalysis/UNMC/sofar")
-for i in DIR:
-    if not re.search(r'csv', i) and i != ".DS_Store":
-        antismashDir = os.listdir(f"/Users/agarber4/Desktop/MABanalysis/UNMC/sofar/{i}")
-        for j in antismashDir:
-            if re.search(r'gbk', j) and re.match(r'k', j):
-                gbk = open(f"/Users/agarber4/Desktop/MABanalysis/UNMC/sofar/{i}/{j}")
-                for k in gbk:
-                    if re.search(r'TFBS', k):
-                        tfbs = (k.split(",")[0].split("to ")[1])
-                        antiDict[i][j.split(".")[0]].append(tfbs)
-
-parseDict = defaultdict(lambda: defaultdict(list))
-DIR = os.listdir("/Users/agarber4/Desktop/MABanalysis/UNMC/sofar")
-for i in DIR:
-    if re.search(r'csv', i):
-        antismash = open(f"/Users/agarber4/Desktop/MABanalysis/UNMC/sofar/{i}")
-        for j in antismash:
-            ls = j.rstrip().split(",")
-            if ls[0] != "File":
-                if len(ls) > 12:
-                    tfbss = ls[13].split(";")
-                    for k in tfbss:
-                        tfbs = k.split("(")[0]
-                        parseDict[i.split(".")[0]][ls[0].split(".")[0]].append(tfbs)
-
-for i in parseDict.keys():
-    print(i)
-    for j in parseDict[i].keys():
-        print(j)
-        print(parseDict[i][j])
-        print(antiDict[i][j])
-        print("+")
-    print("")
-'''
-
-# antiFeDict = defaultdict(lambda: defaultdict(lambda: '-'))
-# antiFe = open("")
+out4.close()
